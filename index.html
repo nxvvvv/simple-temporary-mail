@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tempy</title>
+
+    <link rel='stylesheet' href='//cdn.repl.email/styles/water.css'>
+    <link rel="icon" href="mail.png">
+    <link rel='manifest' href='manifest.json'>
+
+    <style>
+        #status {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100vw;
+            height: 20px;
+            text-align: center;
+            color: gray;
+        }
+
+        .qa{
+            color: green;
+        }
+
+        .qa-answer{
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <h1><a href="/">Tempy</a></h1>
+
+    <div id='about'>
+        <h3 class='qa'>What is this service for?</h3>
+        <p class='qa-answer'>
+            Tempy is a free service that offers temporary, disposable mailboxes to receive emails from.  
+
+            Bear in mind, emails can be accessed by anyone that knows your address.
+        </p>
+
+        <h3 class='qa'>Can I use a custom address?</h3>
+        <p class='qa-answer'>
+            Yes. The user (part before the <code>@</code> sign) can be changed to anything.
+        </p>
+
+        <button onclick='$("#about").hide()'>Hide</button>
+    </div>
+
+    <hr>
+
+    <input id='addr' placeholder="email address" style='width: 49%'>
+    <button onclick='refreshMail()'>Load Mail</button>
+    <button onclick="genEmail()">New Address</button>
+
+    <hr>
+
+    <table id='emails'></table>
+
+    <footer id='status'>
+        Powered By <a href='https://1secmail.com'>1secMail</a>
+        -
+        Created By <a href='https://navaneethkm.gq'>Navaneeth K M</a>
+    </footer>
+
+    <script src='//code.jquery.com/jquery.min.js'></script>
+    <!-- Add back when dupl analytics is working
+    <script src='//analytics.dupl.tech/analytics.js'></script>
+    -->
+    <script>
+
+        function genEmail() {
+            $.getJSON("https://www.1secmail.com/api/v1/?action=genRandomMailbox&count=1", (res) => {
+                $('#addr').val(res[0]);
+                refreshMail();
+            })
+        }
+
+        function refreshMail() {
+            addr = $('#addr').val();
+            if (!addr) {
+                alert("Please generate or input an email address first!");
+                return
+            }
+
+            user = addr.split('@')[0];
+            domain = addr.split('@')[1];
+
+            $.getJSON(`https://www.1secmail.com/api/v1/?action=getMessages&login=${user}&domain=${domain}`, (emails) => {
+                $('#emails').empty();
+
+                $('#emails').append($(`
+                    <tr>
+                        <th><b>ID</b></th>
+                        <th><b>From</b></th>
+                        <th><b>Subject</b></th>
+                        <th><b>Date</b></th>
+                        <th><b>Content</b></th>
+                    </tr>
+                `));
+
+                for (i in emails) {
+                    email = emails[i];
+
+                    $('#emails').append($(`
+                        <tr>
+                            <td>${email['id']}</td>
+                            <td>${email['from']}</td>
+                            <td>${email['subject']}</td>
+                            <td>${email['date']}</td>
+                            <td id="${email['id']}"><a onclick="loadEmail('${email['id']}')">Load content...</a></td>
+                        </tr>
+                    `))
+                }
+            })
+        }
+
+        function loadEmail(id) {
+            addr = $('#addr').val();
+            if (!addr) {
+                alert("Please generate or input an email address first!");
+                return
+            }
+
+            user = addr.split('@')[0];
+            domain = addr.split('@')[1];
+
+            $.getJSON(`https://www.1secmail.com/api/v1/?action=readMessage&login=${user}&domain=${domain}&id=${id}`, (email) => {
+                elm = $(`#${id}`);
+                if (email['htmlBody']) {
+                    elm.html(email['htmlBody']);
+                } else {
+                    elm.text(email['body']);
+                }
+
+                atts = $('<div></div>');
+                for (i in email['attachments']) {
+                    file = email['attachments'][i];
+
+                    atts.append($(`<a href='https://www.1secmail.com/api/v1/?action=download&login=${user}&domain=${domain}&id=${id}&file=${file['filename']}'>${file['filename']}</a>`));
+                }
+                elm.append(atts);
+            })
+        }
+
+        $(function() {
+            genEmail();
+        })
+
+    </script>
+    
+</body>
+</html>
